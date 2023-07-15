@@ -62,4 +62,10 @@ class RemoteExecutorInterface(metaclass=abc.ABCMeta):
         '''
         raise NotImplementedError
 
-
+    @abc.abstractmethod
+    def reset(self):
+        '''
+        Reset connection etc. Can be a no-op
+        :return:
+        '''
+        raise NotImplementedError
