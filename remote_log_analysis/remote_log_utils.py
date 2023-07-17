@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import typing
 import copy
 import abc
-
+from .remote_file_base import RemoteFileBase
 
 def timestamp_format_to_regex(strftime_notation):
     '''
@@ -169,3 +169,97 @@ class CommonRegexLineFormat(LogLineFormatInterface):
                                   logline_format))
 
         return regex
+
+
+class LogLineSplitterInterface(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __iter__(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def read(self) -> typing.Optional[LogLineData]:
+        raise NotImplementedError
+
+
+class UnixLogLineSplitter(LogLineSplitterInterface):
+    '''
+        Split a block of text into log lines. Log lines are newline separated.
+        A line which does not match the format of the specified log line format is considered a continuation of the
+        previous line. This base splitter handles files with UNIX style line endings. This will mostly work in the
+        case of DOS line endings also except for multi-line logging with DOS line endings.
+    '''
+    def __init__(self, reader: RemoteFileBase, log_line_format: LogLineFormatInterface):
+        if not reader.text_mode:
+            raise RuntimeError('LogLineSplitter requires a text mode reader')
+
+        self._reader = reader
+        self._log_line_format = log_line_format
+        self._lines = []
+        self._current_context = []
+        self._match = None
+        self._eof = False
+
+    def _handle_return_match(self):
+        match = self._match
+        self._match = None
+        if not match:
+            return None
+
+        if self._current_context:
+            message = match.message + '\n' + '\n'.join(self._current_context)
+            self._current_context = []
+            return LogLineData(timestamp=match.timestamp,
+                               log_level=match.log_level,
+                               source=match.source,
+                               message=message)
+        else:
+            return match
+
+    def __iter__(self):
+        while True:
+            result = self.read()
+            if not result:
+                return
+            yield result
+
+    def read(self) -> typing.Optional[LogLineData]:
+        '''
+        Read the next LogLineData from the reader. If the reader is at EOF, return None.
+        :return: A LogLineData object if a line was read, None otherwise
+        '''
+        if self._eof and not (self._lines or self._match):
+            return None
+
+        while True:
+            if len(self._lines) <= 1:
+                if not self._eof:
+                    try:
+                        self._from_reader()
+                    except EOFError:
+                        self._eof = True
+
+            if not self._lines:
+                return self._handle_return_match()
+
+            line = self._lines[0]
+            if not line[0]:
+                line[0] = self._log_line_format.match(line[1])
+            match = line[0]
+
+            if match and self._match:
+                return self._handle_return_match()
+            elif match and not self._match:
+                self._match = match
+                self._lines.pop(0)
+            elif not match and self._match:
+                self._current_context.append(line[1])
+                self._lines.pop(0)
+
+    def _from_reader(self):
+        text = self._reader.read().data.splitlines(keepends=True)
+        # If the last line does not end with a newline, add one
+        if self._lines and self._lines[-1][1][-1] != '\n':
+            self._lines[-1][1] += text[0]
+            text.pop(0)
+
+        self._lines.extend([None, l] for l in text)
