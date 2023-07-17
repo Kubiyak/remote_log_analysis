@@ -5,6 +5,7 @@ import copy
 import abc
 from .remote_file_base import RemoteFileBase
 
+
 def timestamp_format_to_regex(strftime_notation):
     '''
     :param strftime_notation: A string using strtime notation describing a timestamp format
@@ -71,6 +72,7 @@ class LogLineFormatInterface(metaclass=abc.ABCMeta):
     details about the matched line in a LogLineData object if a match occurs. Text log traversal implementations can
     use this interface to extract details about log lines in a variety of formats.
     '''
+
     @abc.abstractmethod
     def match(self, line: str) -> typing.Optional[LogLineData]:
         '''
@@ -157,13 +159,6 @@ class CommonRegexLineFormat(LogLineFormatInterface):
             'm': r'.*',
         }
 
-        def replace_format_char(match):
-            token = match.group(1)
-            if token in format_chars:
-                return f'(?P<{token}>{format_chars[token]})'
-            else:
-                return token
-
         regex = re.compile(re.sub(r'%([tlsm])',
                                   lambda x: f'(?P<{x.group(1)}>{format_chars[x.group(1)]})',
                                   logline_format))
@@ -185,9 +180,10 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
     '''
         Split a block of text into log lines. Log lines are newline separated.
         A line which does not match the format of the specified log line format is considered a continuation of the
-        previous line. This base splitter handles files with UNIX style line endings. This will mostly work in the
-        case of DOS line endings also except for multi-line logging with DOS line endings.
+        previous line. This base splitter handles files with UNIX style line endings. Sub-class and set
+        self._multiline_join to '\r\n' to handle files with Windows style line endings.
     '''
+
     def __init__(self, reader: RemoteFileBase, log_line_format: LogLineFormatInterface):
         if not reader.text_mode:
             raise RuntimeError('LogLineSplitter requires a text mode reader')
@@ -198,6 +194,7 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
         self._current_context = []
         self._match = None
         self._eof = False
+        self._multiline_join = '\n'
 
     def _handle_return_match(self):
         match = self._match
@@ -206,7 +203,7 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
             return None
 
         if self._current_context:
-            message = match.message + '\n' + '\n'.join(self._current_context)
+            message = match.message + self._multiline_join + self._multiline_join.join(self._current_context)
             self._current_context = []
             return LogLineData(timestamp=match.timestamp,
                                log_level=match.log_level,
@@ -263,3 +260,25 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
             text.pop(0)
 
         self._lines.extend([None, l] for l in text)
+
+
+class DosLineSplitter(UnixLogLineSplitter):
+    def __init__(self, reader: RemoteFileBase, log_line_format: LogLineFormatInterface):
+        super().__init__(reader, log_line_format)
+        self._multiline_join = '\r\n'
+
+
+class LineSplitter(UnixLogLineSplitter):
+    def __init__(self, reader: RemoteFileBase, log_line_format: LogLineFormatInterface):
+        super().__init__(reader, log_line_format)
+        self._line_ending_determined = False
+
+    def read(self) -> typing.Optional[LogLineData]:
+        if self._line_ending_determined:
+            return super().read()
+        else:
+            super()._from_reader()
+            if self._lines[0][1].find('\r\n') != -1:
+                self._multiline_join = '\r\n'
+            self._line_ending_determined = True
+            return super().read()
