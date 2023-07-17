@@ -127,6 +127,10 @@ class RemoteFileBase:
         self._offset = offset
         return self._offset
 
+    def tell(self) -> int:
+        ''' Return current offset '''
+        return self._offset
+
     def rewind(self) -> int:
         ''' Convenience method to seek to start offset '''
         self._offset = self._start_offset
