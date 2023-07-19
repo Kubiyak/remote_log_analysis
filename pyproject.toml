@@ -11,6 +11,7 @@ python = "^3.10"
 pytest = "^7.4.0"
 fabric = "^3.1.0"
 pytest-cov = "^4.1.0"
+python-dateutil = "^2.8.2"
 
 
 [build-system]

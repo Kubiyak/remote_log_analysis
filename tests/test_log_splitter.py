@@ -2,7 +2,8 @@ import os.path
 import re
 
 from remote_log_analysis import (UnixLogLineSplitter, LineSplitter, DosLineSplitter, RemoteLinuxExecutor,
-                                 CommonRegexLineFormat, RemoteFileBase, RemoteLinuxLog)
+                                 CommonRegexLineFormat, CommonNonRegexLineFormat, RemoteLinuxLog)
+from remote_log_analysis import RemoteFileBase
 
 import pytest
 
@@ -12,7 +13,7 @@ def unix_line_splitter():
     executor = RemoteLinuxExecutor('localhost')
     log_file = os.path.dirname(__file__) + '/data/sample_log_file.log'
     file_base = RemoteFileBase(log_file, executor, text_mode=True, block_size=4096)
-    line_regex = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    line_regex = CommonNonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
     yield UnixLogLineSplitter(file_base, line_regex)
 
 
@@ -21,7 +22,7 @@ def dos_line_splitter():
     executor = RemoteLinuxExecutor('localhost')
     log_file = os.path.dirname(__file__) + '/data/sample_crlf.log'
     file_base = RemoteFileBase(log_file, executor, text_mode=True, block_size=4096)
-    line_regex = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    line_regex = CommonRegexLineFormat(r"%t \[%l\] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
     yield DosLineSplitter(file_base, line_regex)
 
 
@@ -30,7 +31,7 @@ def line_splitter_lf():
     executor = RemoteLinuxExecutor('localhost')
     log_file = os.path.dirname(__file__) + '/data/sample_log_file.log'
     file_base = RemoteFileBase(log_file, executor, text_mode=True, block_size=4096)
-    line_regex = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    line_regex = CommonRegexLineFormat(r"%t \[%l\] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
     yield LineSplitter(file_base, line_regex)
 
 
@@ -39,7 +40,7 @@ def line_splitter_crlf():
     executor = RemoteLinuxExecutor('localhost')
     log_file = os.path.dirname(__file__) + '/data/sample_crlf.log'
     file_base = RemoteFileBase(log_file, executor, text_mode=True, block_size=4096)
-    line_regex = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    line_regex = CommonNonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
     yield LineSplitter(file_base, line_regex)
 
 
@@ -62,7 +63,7 @@ def test_log_line_splitter(ssh_localhost, line_splitter, request):
 def test_remote_linux_log(ssh_localhost):
     executor = RemoteLinuxExecutor('localhost')
     log_file = os.path.dirname(__file__) + '/data/sample_log_file.log'
-    log_format = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    log_format = CommonNonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
     log = RemoteLinuxLog(log_file, executor, log_format)
 
     count = 0
