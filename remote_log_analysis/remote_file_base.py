@@ -161,6 +161,7 @@ class RemoteFileBase:
 
         success = False
         result = None
+        bytes_to_read = 0
 
         for i in range(2):
             try:

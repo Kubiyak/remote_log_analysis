@@ -72,3 +72,7 @@ def test_lowlevel_fails(binary_stream_1mm):
 
     with pytest.raises(OSError):
         reader = RemoteFileBase("/foo/bar", executor=executor, block_size=4096, text_mode=False)
+
+
+def test_remote_log():
+    pass
