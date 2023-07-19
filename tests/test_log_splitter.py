@@ -2,7 +2,8 @@ import os.path
 import re
 
 from remote_log_analysis import (UnixLogLineSplitter, LineSplitter, DosLineSplitter, RemoteLinuxExecutor,
-                                 CommonRegexLineFormat, RemoteFileBase)
+                                 CommonRegexLineFormat, RemoteFileBase, RemoteLinuxLog)
+
 import pytest
 
 
@@ -54,5 +55,33 @@ def test_log_line_splitter(ssh_localhost, line_splitter, request):
         count += 1
         assert ts_regex.match(line.timestamp)
         assert line.log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]
+
+    assert count == 50
+
+
+def test_remote_linux_log(ssh_localhost):
+    executor = RemoteLinuxExecutor('localhost')
+    log_file = os.path.dirname(__file__) + '/data/sample_log_file.log'
+    log_format = CommonRegexLineFormat("%t [%l] %m", "%Y-%m-%d %H:%M:%S.%f", ["DEBUG", "INFO", "WARNING", "ERROR"])
+    log = RemoteLinuxLog(log_file, executor, log_format)
+
+    count = 0
+
+    for chunk in log.read_chunk_iter():
+        count += 1
+        assert len(chunk.data) > 0
+
+    assert count == 2
+
+    log.rewind()
+    for i in range(2):
+        log.read_chunk()
+
+    assert log.read_chunk() == None
+
+    count = 0
+    log.seek(0)
+    for line in log.read_line_iter():
+        count += 1
 
     assert count == 50

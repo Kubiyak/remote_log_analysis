@@ -175,6 +175,14 @@ class LogLineSplitterInterface(metaclass=abc.ABCMeta):
     def read(self) -> typing.Optional[LogLineData]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def clear(self):
+        '''
+        Clear any state associated with the splitter. The next read will read from the file
+        :return:
+        '''
+        raise NotImplementedError
+
 
 class UnixLogLineSplitter(LogLineSplitterInterface):
     '''
@@ -195,6 +203,12 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
         self._match = None
         self._eof = False
         self._multiline_join = '\n'
+
+    def clear(self):
+        self._lines = []
+        self._current_context = []
+        self._match = None
+        self._eof = False
 
     def _handle_return_match(self):
         match = self._match

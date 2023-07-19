@@ -10,9 +10,6 @@ import os
 # This test requires pytest to be run with the -s option.
 
 
-
-
-
 def test_read_file_localhost(ssh_localhost):
     linux_exec = RemoteLinuxExecutor('localhost')
     read_result = linux_exec.read_file(__file__)
@@ -35,6 +32,7 @@ def test_stat_file_localhost(ssh_localhost):
     linux_exec = RemoteLinuxExecutor('localhost')
     stat_result = linux_exec.file_stat(__file__)
     assert stat_result.path == __file__
+
 
 def test_executor_methods(ssh_localhost):
     linux_exec = RemoteLinuxExecutor('localhost')
