@@ -99,8 +99,8 @@ class RemoteFileBase:
         return self._start_offset
 
     @property
-    def end_offset(self) -> typing.Optional[int]:
-        return self._end_offset
+    def end_offset(self) -> int:
+        return self._end_offset or self._size
 
     @property
     def stat(self) -> RemotePathInfo:

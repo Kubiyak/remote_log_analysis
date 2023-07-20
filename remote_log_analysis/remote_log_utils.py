@@ -38,6 +38,7 @@ def timestamp_format_to_regex(strftime_notation):
         'g': r'\d{2}',
         'G': r'\d{4}',
         'V': r'\d{2}',
+        '%': r'%'
     }
 
     chars_to_escape = {'{', '}', '[', ']', '(', ')', '|', '*', '+', '?', '.', '\\', '^', '$'}
@@ -93,12 +94,12 @@ class CommonRegexLineFormat(LogLineFormatInterface):
     The timestamp is further specified in strftime format in timestamp_format.
     The log levels are specified in log_levels in order of increasing severity.
 
-    This class will work well for most common log line formats but certainly will not work well for all log line
-    formats.
-    In particular, it will not work well for log lines which do not contain a timestamp or log level or in which
-    the message text is interspersed with the timestamp, loglevel, or source.
+    This class will work well for most common log line formats where the format of the line can be described with
+    a regular expression and the timestamp can be described with strftime notation.
 
-    In such cases, just define a custom LogLineFormatInterface and implement as required for the specific log format.
+    This should cover the majority of text log formats. A custom formatter can be defined as necessary in the event
+    this formatter is insufficient. For convenience, a CommonNonRegexLineFormat is provided for simple cases where
+    the log line format is a literal string apart from %t %l %s %m as described above.
     '''
 
     def __init__(self, logline_format: str, timestamp_format: str, log_levels: typing.Iterable[str]):
@@ -108,14 +109,14 @@ class CommonRegexLineFormat(LogLineFormatInterface):
         %l - Log level
         %s - Source
         %m - Log message
-        Other characters are treated as literals.
-        :param timestamp_format: The timestamp format in strftime notation
+        Other characters are passed to re.compile directly. Be careful to escape these special character sequences:
+        {, }, [, ], (, ), |, *, +, ?, ., \\, ^, $
+        Use CommonNonRegexLineFormat if you want to match a literal string.
+        :param timestamp_format: The timestamp format in strftime notation. See
+        https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes. The formatter will attempt
+        to match a pattern but will not validate the timestamp.
         :param log_levels: A list of log levels in order of increasing severity. These are the acceptable values for %l
         '''
-        # escape any special sequences in logline_format before proceeding
-        chars_to_escape = {'{', '}', '[', ']', '(', ')', '|', '*', '+', '?', '.', '\\', '^', '$'}
-        escaped_chars = [re.escape(t) if t in chars_to_escape else t for t in logline_format]
-        logline_format = ''.join(escaped_chars)
 
         self._logline_format = logline_format
         self._timestamp_format = timestamp_format
@@ -164,6 +165,27 @@ class CommonRegexLineFormat(LogLineFormatInterface):
                                   logline_format))
 
         return regex
+
+
+class CommonNonRegexLineFormat(CommonRegexLineFormat):
+    '''
+    A convenience class for specifying a literal log line format apart from the special %t %l %s %m tokens.
+    '''
+    def __init__(self, logline_format: str, timestamp_format: str, log_levels: typing.Iterable[str]):
+        '''
+        :param logline_format: Specifies the log line format with the tokens described above:
+        %t - Timestamp
+        %l - Log level
+        %s - Source
+        %m - Log message
+        :param timestamp_format: The timestamp format in strftime notation
+        :param log_levels: A list of log levels in order of increasing severity. These are the acceptable values for %l
+        '''
+        # escape any special sequences in logline_format before proceeding
+        chars_to_escape = {'{', '}', '[', ']', '(', ')', '|', '*', '+', '?', '.', '\\', '^', '$'}
+        escaped_chars = [re.escape(t) if t in chars_to_escape else t for t in logline_format]
+        logline_format = ''.join(escaped_chars)
+        super().__init__(logline_format, timestamp_format, log_levels)
 
 
 class LogLineSplitterInterface(metaclass=abc.ABCMeta):
@@ -264,6 +286,9 @@ class UnixLogLineSplitter(LogLineSplitterInterface):
                 self._lines.pop(0)
             elif not match and self._match:
                 self._current_context.append(line[1])
+                self._lines.pop(0)
+            else:
+                # non-matching line and no match in progress
                 self._lines.pop(0)
 
     def _from_reader(self):
