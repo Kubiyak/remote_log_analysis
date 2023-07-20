@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "remote-log-analysis"
-version = "0.1.0"
+version = "0.1.2"
 description = "Analyze log files on remote hosts locally"
 authors = ["Kuberan Naganathan <python_cpp_developer@protonmail.com>"]
 readme = "README.md"
