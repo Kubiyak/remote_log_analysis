@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Analyze log files on remote hosts locally"
 authors = ["Kuberan Naganathan <python_cpp_developer@protonmail.com>"]
 readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/kubiyak/remote_log_analysis"
+repository = "https://github.com/kubiyak/remote_log_analysis"
 packages = [{include = "remote_log_analysis"}]
 
 [tool.poetry.dependencies]
